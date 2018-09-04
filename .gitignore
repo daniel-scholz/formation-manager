@@ -1,0 +1,7 @@
+password
+
+*.json
+*.csv
+.vscode
+
+__pycache__
