@@ -1,8 +1,11 @@
-from http.server import BaseHTTPRequestHandler, HTTPServer
+import argparse
 import cgi
-from urllib.parse import unquote
 import io
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from urllib.parse import unquote
+
 from kickbase import formatter
+
 # HTTPRequestHandler class
 
 
@@ -29,7 +32,7 @@ class HTTPServer_RequestHandler(BaseHTTPRequestHandler):
 
         self.send_header("Content-Type", "text/csv")
         self.send_header("Content-Disposition",
-                         "attachment; filename='my_squad.csv'")
+                         "attachment; filename=my_squad.csv")
         self.send_header('Location', '.')
         self.end_headers()
 
@@ -50,12 +53,19 @@ class HTTPServer_RequestHandler(BaseHTTPRequestHandler):
 
 def run():
     print('starting server...')
-
+    parser = argparse.ArgumentParser()
+    parser.add_argument("mode", type=str, default="dev", help="dev or prod")
+    args = parser.parse_args()
+    if args.mode == "dev":
+        ADDRESS = "localhost"
+    else:
+        ADDRESS = ""
+    print(ADDRESS)
     # Server settings
     # Choose port 8080, for port 80, which is normally used for a http server, you need root access
     PORT_NUMBER = 80
 
-    server_address = ('localhost', PORT_NUMBER)
+    server_address = (ADDRESS, PORT_NUMBER)
     httpd = HTTPServer(server_address, HTTPServer_RequestHandler)
     print('running server...')
     httpd.serve_forever()
