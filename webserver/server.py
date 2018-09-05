@@ -39,8 +39,10 @@ class HTTPServer_RequestHandler(BaseHTTPRequestHandler):
         credentials = post_data.split("&")
         m = credentials[0].split("=")[1]
         p = credentials[1].split("=")[1]
-        m, p = unquote(m), unquote(p)
-        ret_val = formatter.run(m, p)
+        l = credentials[2].split("=")[1]
+        m, p, l = unquote(m), unquote(p), unquote(l).replace("+", " ")
+
+        ret_val = formatter.run(m, p, l)
         self.wfile.write(bytes(ret_val, "utf8"))
 
         return
@@ -52,7 +54,8 @@ def run():
     # Server settings
     # Choose port 8080, for port 80, which is normally used for a http server, you need root access
     PORT_NUMBER = 80
-    server_address = ('', PORT_NUMBER)
+
+    server_address = ('localhost', PORT_NUMBER)
     httpd = HTTPServer(server_address, HTTPServer_RequestHandler)
     print('running server...')
     httpd.serve_forever()

@@ -44,21 +44,21 @@ def login(m, p):
     return access_token
 
 
-def get_tm(auth_token):
+def get_tm(auth_token, league_id):
     headers = {
         "Authorization": f"Bearer {auth_token}"
     }
     request = requests.get(
-        "https://api.kickbase.com/leagues/620692/market", headers=headers)
+        f"https://api.kickbase.com/leagues/{league_id}/market", headers=headers)
     # print(request.text)
     with open("tm.json", "w+") as f:
         f.write(request.text)
 
 
-def get_squad(auth_token):
+def get_squad(auth_token, league_id):
     headers = {"Authorization": f"Bearer {auth_token}"}
     request = requests.get(
-        "https://api.kickbase.com/leagues/620692/lineupex", headers=headers)
+        f"https://api.kickbase.com/leagues/{league_id}/lineupex", headers=headers)
     players_json = json.loads(request.text)["players"]
 
     # with open("squad.json", "w+") as f:
@@ -82,17 +82,20 @@ def find_league(leagues, league_name):
     return 0, 0
 
 
-def analyse(auth_token):
+def analyse(auth_token, league_name):
     url = "https://api.kickbase.com/leagues?ext=true"
     leagues = requests.get(
         url, headers={"Authorization": f"Bearer {auth_token}"})
-    league_name = "FUSSBALLGLOTZER2"
+    # league_name = "FUSSBALLGLOTZER2"
     # league_name = "Atos kickbase "
-
     if leagues.status_code == 200:
         league_json = leagues.json()["leagues"]
+        for l in league_json:
+            if l["name"] == league_name:
+                league_id = l["id"]
         budget, total_team_value_json = find_league(league_json, league_name)
-    players, total_team_value = get_squad(auth_token=auth_token)
+    players, total_team_value = get_squad(
+        auth_token=auth_token, league_id=league_id)
     if total_team_value != total_team_value_json:
         print(
             f"something went wrong {total_team_value}!= {total_team_value_json}")
@@ -101,7 +104,7 @@ def analyse(auth_token):
         "Authorization": f"Bearer {auth_token}"
     }
     market = requests.get(
-        "https://api.kickbase.com/leagues/620692/market", headers=headers)
+        f"https://api.kickbase.com/leagues/{league_id}/market", headers=headers)
 
     market_players = market.json()["players"]
     for mp in market_players:
@@ -127,10 +130,10 @@ def players_to_csv(path, ps):
     return csv_str
 
 
-def run(m, p):
+def run(m, p, l):
     auth_token = login(m, p)
     if auth_token == -1:
         return "fail"
-    players, total_team_value, budget = analyse(auth_token)
+    players, total_team_value, budget = analyse(auth_token, l)
 
     return save("my_squad.csv", players, total_team_value, budget)
