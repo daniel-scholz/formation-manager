@@ -28,6 +28,9 @@ class HTTPServer_RequestHandler(BaseHTTPRequestHandler):
         self.send_response(200)
 
         self.send_header("Content-Type", "text/csv")
+        self.send_header("Content-Disposition",
+                         "attachment; filename='my_squad.csv'")
+        self.send_header('Location', '.')
         self.end_headers()
 
         content_length = int(self.headers["Content-Length"])
@@ -39,6 +42,7 @@ class HTTPServer_RequestHandler(BaseHTTPRequestHandler):
         m, p = unquote(m), unquote(p)
         ret_val = formatter.run(m, p)
         self.wfile.write(bytes(ret_val, "utf8"))
+
         return
 
 
@@ -48,7 +52,7 @@ def run():
     # Server settings
     # Choose port 8080, for port 80, which is normally used for a http server, you need root access
     PORT_NUMBER = 80
-    server_address = ('127.0.0.1', PORT_NUMBER)
+    server_address = ('', PORT_NUMBER)
     httpd = HTTPServer(server_address, HTTPServer_RequestHandler)
     print('running server...')
     httpd.serve_forever()
