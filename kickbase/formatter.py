@@ -41,7 +41,7 @@ def login(mail: str, password: str) -> (int, str):
             "password": password
         })
     if login.status_code == 200:
-        return json.loads(login.text)["user"]["accessToken"], f"user '{m}' logged in successfully"
+        return json.loads(login.text)["user"]["accessToken"], f"user '{mail}' logged in successfully"
     else:
         return -1, f"could not login user {mail}, {login.status_code}"
 
