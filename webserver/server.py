@@ -47,7 +47,6 @@ class HTTPServer_RequestHandler(BaseHTTPRequestHandler):
 
         ret_val = formatter.run(m, p, l)
         self.wfile.write(bytes(ret_val, "utf8"))
-
         return
 
 
@@ -60,11 +59,9 @@ def run():
         ADDRESS = "localhost"
     else:
         ADDRESS = ""
-    print(ADDRESS)
     # Server settings
     # Choose port 8080, for port 80, which is normally used for a http server, you need root access
     PORT_NUMBER = 80
-
     server_address = (ADDRESS, PORT_NUMBER)
     httpd = HTTPServer(server_address, HTTPServer_RequestHandler)
     print('running server...')

@@ -1,6 +1,7 @@
 import requests
 import json
 import argparse
+from typing import List
 
 
 class Player():
@@ -16,7 +17,14 @@ class Player():
         self.for_sale = False
 
 
-def parse_credentials():
+class Team():
+    def __init__(self, players, value, budget):
+        self.players = players
+        self.value = value
+        self.budget = budget
+
+
+def parse_credentials() -> (str, str):
     parser = argparse.ArgumentParser(description='parse login info')
 
     parser.add_argument("m", type=str,  help="mail")
@@ -26,43 +34,22 @@ def parse_credentials():
     return args.m, args.p
 
 
-def login(m, p):
-    params = {
-        "email": m,
-        "password": p
-    }
+def login(mail: str, password: str) -> (int, str):
     login = requests.post(
-        "https://kickbase.sky.de/api/v1/user/login", params=params)
+        "https://kickbase.sky.de/api/v1/user/login", params={
+            "email": mail,
+            "password": password
+        })
     if login.status_code == 200:
-        access_token = json.loads(login.text)["user"]["accessToken"]
-        print(
-            f"user '{m}' logged in successfully\npassword 'short-penis_7cm' is correct")
+        return json.loads(login.text)["user"]["accessToken"], f"user '{m}' logged in successfully"
     else:
-        print("could not login", login.status_code)
-        access_token = -1
-
-    return access_token
+        return -1, f"could not login user {mail}, {login.status_code}"
 
 
-def get_tm(auth_token, league_id):
-    headers = {
-        "Authorization": f"Bearer {auth_token}"
-    }
+def get_squad(auth_token: str, id: int):
     request = requests.get(
-        f"https://api.kickbase.com/leagues/{league_id}/market", headers=headers)
-    # print(request.text)
-    with open("tm.json", "w+") as f:
-        f.write(request.text)
-
-
-def get_squad(auth_token, league_id):
-    headers = {"Authorization": f"Bearer {auth_token}"}
-    request = requests.get(
-        f"https://api.kickbase.com/leagues/{league_id}/lineupex", headers=headers)
+        f"https://api.kickbase.com/leagues/{id}/lineupex", headers={"Authorization": f"Bearer {auth_token}"})
     players_json = json.loads(request.text)["players"]
-
-    # with open("squad.json", "w+") as f:
-    # f.write(json.dumps(players_json))
 
     players = []
     total_market_value = 0
@@ -73,67 +60,68 @@ def get_squad(auth_token, league_id):
     return players, total_market_value
 
 
-def find_league(leagues, league_name):
+def get_budget(leagues: json, name: str) -> int:
     for l in leagues:
-        if l["name"] == league_name:
-            budget = l["lm"]["budget"]
-            total_team_value_json = l["lm"]["teamValue"]
-            return budget, total_team_value_json
-    return 0, 0
+        if l["name"] == name:
+            return l["lm"]["budget"]
+    return 0
 
 
-def analyse(auth_token, league_name):
-    url = "https://api.kickbase.com/leagues?ext=true"
+def get_leagues(auth_token: str) -> json:
     leagues = requests.get(
-        url, headers={"Authorization": f"Bearer {auth_token}"})
-    # league_name = "FUSSBALLGLOTZER2"
-    # league_name = "Atos kickbase "
-    if leagues.status_code == 200:
-        league_json = leagues.json()["leagues"]
-        for l in league_json:
-            if l["name"] == league_name:
-                league_id = l["id"]
-        budget, total_team_value_json = find_league(league_json, league_name)
-    players, total_team_value = get_squad(
-        auth_token=auth_token, league_id=league_id)
-    if total_team_value != total_team_value_json:
-        print(
-            f"something went wrong {total_team_value}!= {total_team_value_json}")
+        "https://api.kickbase.com/leagues?ext=true",
+        headers={"Authorization": f"Bearer {auth_token}"})
 
-    headers = {
-        "Authorization": f"Bearer {auth_token}"
-    }
+    if leagues.status_code != 200:
+        raise ConnectionError(
+            f"could not get leagues, status code {leagues.status_code}")
+    return leagues.json()["leagues"]
+
+
+def get_offers(auth_token: str, id: int, players: List) -> List:
     market = requests.get(
-        f"https://api.kickbase.com/leagues/{league_id}/market", headers=headers)
+        f"https://api.kickbase.com/leagues/{id}/market", headers={
+            "Authorization": f"Bearer {auth_token}"
+        })
 
-    market_players = market.json()["players"]
-    for mp in market_players:
+    for mp in market.json()["players"]:
         for p in players:
-            if mp["id"] == p.id and mp["offers"]:
+            if mp["id"] == p.id and "offers" in mp:
                 for o in mp["offers"]:
                     if o["price"] > p.highest_offer:
                         p.highest_offer = o["price"]
-                        # print("highest offer:", p.highest_offer)
-    return players, total_team_value, budget
+    return players
 
 
-def save(path, players, total_team_value, budget):
-    csv_str = f"TOTAL:, {total_team_value}, BUDGET:, {budget}\n"
-    csv_str += players_to_csv(path, players)
-    return csv_str
+def analyse(auth_token: str, league_name: str) -> Team:
+    leagues = get_leagues(auth_token)
+    league_id = 0
+    for l in leagues:
+        if l["name"] == league_name:
+            league_id = l["id"]
+    if league_id == 0:
+        return None
+    team = Team([], 0, 0)
+    team.budget = get_budget(leagues=leagues, name=league_name)
+
+    team.players, team.value = get_squad(
+        auth_token=auth_token, id=league_id)
+    team.players = get_offers(auth_token=auth_token,
+                              id=league_id,
+                              players=team.players)
+
+    return team
 
 
-def players_to_csv(path, ps):
-    csv_str = ""
-    for p in ps:
+def to_csv(team: Team) -> str:
+    csv_str = f"TOTAL:, {team.value}, BUDGET:, {team.budget}\n"
+    for p in team.players:
         csv_str += f"{p.name},{p.position},{p.market_value}, {p.highest_offer}\n"
     return csv_str
 
 
-def run(m, p, l):
-    auth_token = login(m, p)
-    if auth_token == -1:
-        return "fail"
-    players, total_team_value, budget = analyse(auth_token, l)
-
-    return save("my_squad.csv", players, total_team_value, budget)
+def run(mail: str, password: str, league: str) -> str:
+    auth_token, error = login(mail, password)
+    print(error)
+    team = analyse(auth_token=auth_token, league_name=league)
+    return to_csv(team=team)
