@@ -4,27 +4,25 @@ import io
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import unquote
 
-from kickbase import formatter
+from kickbase import analyser
 
 # HTTPRequestHandler class
 
 
-class HTTPServer_RequestHandler(BaseHTTPRequestHandler):
+class Serv(BaseHTTPRequestHandler):
 
     # GET
     def do_GET(self):
-        # Send response status code
-        self.send_response(200)
-
-        # Send headers
-        self.send_header('Content-type', 'text/html')
+        if self.path == '/':
+            self.path = '/index.html'
+        try:
+            file_to_open = open(f"./web/static/{self.path[1:]}").read()
+            self.send_response(200)
+        except:
+            file_to_open = "File not found"
+            self.send_response(404)
         self.end_headers()
-
-        # Send message back to client
-        with open("./webserver/static/index.html", "r") as f:
-            message = f.read()
-        # Write content as utf-8 data
-        self.wfile.write(bytes(message, "utf8"))
+        self.wfile.write(bytes(file_to_open, 'utf-8'))
         return
 
     def do_POST(self):
@@ -45,7 +43,7 @@ class HTTPServer_RequestHandler(BaseHTTPRequestHandler):
         l = credentials[2].split("=")[1]
         m, p, l = unquote(m), unquote(p), unquote(l).replace("+", " ")
 
-        ret_val = formatter.run(m, p, l)
+        ret_val = analyser.run(m, p, l)
         self.wfile.write(bytes(ret_val, "utf8"))
         return
 
@@ -63,7 +61,7 @@ def run():
     # Choose port 8080, for port 80, which is normally used for a http server, you need root access
     PORT_NUMBER = 80
     server_address = (ADDRESS, PORT_NUMBER)
-    httpd = HTTPServer(server_address, HTTPServer_RequestHandler)
+    httpd = HTTPServer(server_address, Serv)
     print('running server...')
     httpd.serve_forever()
 

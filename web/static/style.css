@@ -1,0 +1,43 @@
+body {
+	padding: 30px;
+	text-align: center;
+}
+
+div {
+	padding: 10px 10px 0px 10px;	
+}
+
+input {
+    padding: 9px;
+    border: solid 1px #E5E5E5;
+	border-radius: 5px;
+    outline: 0;
+    font: normal 13px/100% Verdana, Tahoma, sans-serif;
+    width: 50%;
+    background: #FFFFFF;
+    -moz-box-sizing: border-box; -webkit-box-sizing: border-box; box-sizing: border-box;
+}
+
+input::placeholder {
+	color: #E5E5E5;
+}
+
+input:hover, input:focus, input[type="submit"]:hover {
+    border-color: #13c38c;/*#C9C9C9;*/
+}
+
+label {
+	font: normal 13px/100% Verdana, Tahoma, sans-serif;
+    margin-left: 0px;
+    color: #999999;
+}
+
+input[type="submit"] {
+    width: auto;
+    padding: 9px 15px;
+	margin-left: 0px;
+    background: #13c38c;
+    border: 0;
+    font-size: 14px;
+    color: #FFFFFF;
+}

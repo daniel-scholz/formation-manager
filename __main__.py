@@ -1,5 +1,5 @@
-from kickbase import formatter
-from webserver import server
+from kickbase import analyser
+from web import server
 
 
 def main():

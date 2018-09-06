@@ -104,12 +104,9 @@ def analyse(auth_token: str, league_name: str) -> Team:
     team = Team([], 0, 0)
     team.budget = get_budget(leagues=leagues, name=league_name)
 
-    team.players, team.value = get_squad(
-        auth_token=auth_token, id=league_id)
+    team.players, team.value = get_squad(auth_token=auth_token, id=league_id)
     team.players = get_offers(auth_token=auth_token,
-                              id=league_id,
-                              players=team.players)
-
+                              id=league_id, players=team.players)
     return team
 
 
