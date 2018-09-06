@@ -17,6 +17,15 @@ class Player():
         self.for_sale = False
 
 
+class LoginError(Exception):
+    def __init__(self, mail, status_code):
+        self.mail = mail
+        self.code = status_code
+
+class AnalysisError(Exception):
+    pass
+
+
 class Team():
     def __init__(self, players, value, budget):
         self.players = players
@@ -34,16 +43,16 @@ def parse_credentials() -> (str, str):
     return args.m, args.p
 
 
-def login(mail: str, password: str) -> (int, str):
+def login(mail: str, password: str) -> (int):
     login = requests.post(
         "https://kickbase.sky.de/api/v1/user/login", params={
             "email": mail,
             "password": password
         })
     if login.status_code == 200:
-        return json.loads(login.text)["user"]["accessToken"], f"user '{mail}' logged in successfully"
-    else:
-        return -1, f"could not login user {mail}, {login.status_code}"
+        return json.loads(login.text)["user"]["accessToken"]
+
+    raise LoginError(mail, login.status_code)
 
 
 def get_squad(auth_token: str, id: int):
@@ -64,7 +73,7 @@ def get_budget(leagues: json, name: str) -> int:
     for l in leagues:
         if l["name"] == name:
             return l["lm"]["budget"]
-    return 0
+    raise NameError(f"could not find league {name}")
 
 
 def get_leagues(auth_token: str) -> json:
@@ -94,31 +103,44 @@ def get_offers(auth_token: str, id: int, players: List) -> List:
 
 
 def analyse(auth_token: str, league_name: str) -> Team:
-    leagues = get_leagues(auth_token)
-    league_id = 0
-    for l in leagues:
-        if l["name"] == league_name:
-            league_id = l["id"]
-    if league_id == 0:
-        return None
-    team = Team([], 0, 0)
-    team.budget = get_budget(leagues=leagues, name=league_name)
+    try:
+        leagues = get_leagues(auth_token)
+        league_id = 0
+        for l in leagues:
+            if l["name"] == league_name:
+                league_id = l["id"]
+        if league_id == 0:
+            raise NameError(f"cannot determine id for {league_name}")
 
-    team.players, team.value = get_squad(auth_token=auth_token, id=league_id)
-    team.players = get_offers(auth_token=auth_token,
-                              id=league_id, players=team.players)
-    return team
+        team = Team([], 0, 0)
+        try:
+            team.budget = get_budget(leagues=leagues, name=league_name)
+            team.players, team.value = get_squad(
+                auth_token=auth_token, id=league_id)
+            team.players = get_offers(auth_token=auth_token,
+                                      id=league_id, players=team.players)
+            return team
+        except (NameError):
+            # print("Poop")
+            pass
+    except (NameError, ConnectionError):
+        pass
 
 
 def to_csv(team: Team) -> str:
-    csv_str = f"TOTAL:, {team.value}, BUDGET:, {team.budget}\n"
-    for p in team.players:
-        csv_str += f"{p.name},{p.position},{p.market_value}, {p.highest_offer}\n"
-    return csv_str
+    try:
+        csv_str = f"TOTAL:, {team.value}, BUDGET:, {team.budget}\n"
+        for p in team.players:
+            csv_str += f"{p.name},{p.position},{p.market_value}, {p.highest_offer}\n"
+        return csv_str
+    except(NameError):
+        pass
 
 
 def run(mail: str, password: str, league: str) -> str:
-    auth_token, error = login(mail, password)
-    print(error)
+    auth_token = login(mail, password)
+    print(f"login successful {mail}")
     team = analyse(auth_token=auth_token, league_name=league)
-    return to_csv(team=team)
+    if team != None:
+        return to_csv(team=team)
+    raise AnalysisError("something went wrong during analysis")

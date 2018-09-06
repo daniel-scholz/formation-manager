@@ -26,24 +26,31 @@ class Serv(BaseHTTPRequestHandler):
         return
 
     def do_POST(self):
-        self.send_response(200)
-
-        self.send_header("Content-Type", "text/csv")
-        self.send_header("Content-Disposition",
-                         "attachment; filename=my_squad.csv")
-        self.send_header('Location', '.')
-        self.end_headers()
 
         content_length = int(self.headers["Content-Length"])
         post_data = self.rfile.read(content_length).decode(
             "utf-8")  # <--- Gets the data itself
         credentials = post_data.split("&")
-        m = credentials[0].split("=")[1]
-        p = credentials[1].split("=")[1]
-        l = credentials[2].split("=")[1]
-        m, p, l = unquote(m), unquote(p), unquote(l).replace("+", " ")
+        mail = credentials[0].split("=")[1]
+        password = credentials[1].split("=")[1]
+        league = credentials[2].split("=")[1]
+        mail, password, league = unquote(mail), unquote(password), unquote(league).replace("+", " ")
+        self.send_response(200)
+        try:
+            ret_val = analyser.run(mail, password, league)
+            # self.send_response(200)
+            self.send_header("Content-Type", "text/csv")
+            self.send_header("Content-Disposition",
+                             "attachment; filename=my_squad.csv")
+        except (analyser.AnalysisError):
+            self.send_header("Content-Type", "text/html")
+            ret_val = "analysis didn't work"
+        except analyser.LoginError as err:
+            ret_val = f"could not login user {err.mail}, code {err.code}"
+        except:
+            ret_val = "some mysterious error occured, which the developer did not foresee"
 
-        ret_val = analyser.run(m, p, l)
+        self.end_headers()
         self.wfile.write(bytes(ret_val, "utf8"))
         return
 
