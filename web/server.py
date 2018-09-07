@@ -2,7 +2,7 @@ import argparse
 import cgi
 import io
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from urllib.parse import unquote
+from urllib.parse import unquote, quote
 
 from kickbase import analyser
 
@@ -26,7 +26,6 @@ class Serv(BaseHTTPRequestHandler):
         return
 
     def do_POST(self):
-
         content_length = int(self.headers["Content-Length"])
         post_data = self.rfile.read(content_length).decode(
             "utf-8")  # <--- Gets the data itself
@@ -34,16 +33,22 @@ class Serv(BaseHTTPRequestHandler):
         mail = credentials[0].split("=")[1]
         password = credentials[1].split("=")[1]
         league = credentials[2].split("=")[1]
-        mail, password, league = unquote(mail), unquote(password), unquote(league).replace("+", " ")
+        mail, password, league = unquote(mail), unquote(
+            password), unquote(league).replace("+", " ")
         self.send_response(200)
         try:
             ret_val = analyser.run(mail, password, league)
-            # self.send_response(200)
-            self.send_header("Content-Type", "text/csv")
-            self.send_header("Content-Disposition",
-                             "attachment; filename=my_squad.csv")
-        except (analyser.AnalysisError):
+            csv_temp = ret_val
+            ret_val = csv_to_html(ret_val)
+            with open("./web/static/table.html", "r") as f:
+                table = f.read()
+                ret_val = table.replace("$$$TABLE$$$", ret_val)
+                ret_val = ret_val.replace("$$$CSV$$$", quote(csv_temp))
+
             self.send_header("Content-Type", "text/html")
+
+        except (analyser.AnalysisError):
+            # self.send_header("Content-Type", "text/html")
             ret_val = "analysis didn't work"
         except analyser.LoginError as err:
             ret_val = f"could not login user {err.mail}, code {err.code}"
@@ -53,6 +58,18 @@ class Serv(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(bytes(ret_val, "utf8"))
         return
+
+
+def csv_to_html(csv: str)-> str:
+    lines = csv.split("\n")
+    html = "<table>"
+    for l in lines:
+        items = l.split(",")
+        html += "<tr>"
+        for i in items:
+            html += f"<td>{i}</td>"
+        html += "</tr>"
+    return html + "</table>"
 
 
 def run():
