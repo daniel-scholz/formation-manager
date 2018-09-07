@@ -1,8 +1,8 @@
 import argparse
-import cgi
 import io
+import mimetypes
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from urllib.parse import unquote, quote
+from urllib.parse import quote, unquote
 
 from kickbase import analyser
 
@@ -44,8 +44,8 @@ class Serv(BaseHTTPRequestHandler):
                 table = f.read()
                 ret_val = table.replace("$$$TABLE$$$", ret_val)
                 ret_val = ret_val.replace("$$$CSV$$$", quote(csv_temp))
-
-            self.send_header("Content-Type", "text/html")
+            mime_type = mimetypes.guess_type(self.path)
+            self.send_header("Content-Type", mime_type)
 
         except (analyser.AnalysisError):
             # self.send_header("Content-Type", "text/html")
