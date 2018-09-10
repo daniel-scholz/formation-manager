@@ -10,28 +10,37 @@ from kickbase import analyser
 
 
 class Serv(BaseHTTPRequestHandler):
+    def do_HEAD(self):
+        print("HEADER")
+        self.send_response(200)
+        mime_type = mimetypes.guess_type(self.path)
+        self.send_header("Content-Type", mime_type)
+        self.end_headers()
 
     # GET
     def do_GET(self):
         if self.path == '/':
             self.path = '/index.html'
-        try:
-            file_to_open = open(f"./web/static/{self.path[1:]}").read()
-            self.send_response(200)
-            # self.send_header("Content-Type","text/html; charset=utf-8")
-            mime_type = mimetypes.guess_type(self.path)
-            self.send_header("Content-Type", mime_type)
-        except:
-            file_to_open = "File not found"
-            self.send_response(404)
-        self.end_headers()
-        self.wfile.write(bytes(file_to_open, 'utf-8'))
+        if self.path == "/redirect":
+            self.send_response(301)
+            self.send_header("Location", "/")
+            self.end_headers()
+            self.wfile.write(bytes("Redirect", 'utf-8'))
+
+        else:
+            try:
+                """Respond to a GET request."""
+                file_to_open = open(f"web/static/{self.path[1:]}").read()
+                self.send_response(200)
+                mime_type = mimetypes.guess_type(self.path)
+                self.send_header("Content-Type", mime_type)
+                self.end_headers()
+            except (FileNotFoundError):
+                self.send_response(404)
+                self.end_headers()
+                file_to_open = open(f"web/static/404.html").read()
+            self.wfile.write(bytes(file_to_open, 'utf-8'))
         return
-
-
-
-
-
 
     def do_POST(self):
         content_length = int(self.headers["Content-Length"])
@@ -95,7 +104,12 @@ def run():
     server_address = (ADDRESS, PORT_NUMBER)
     httpd = HTTPServer(server_address, Serv)
     print('running server...')
-    httpd.serve_forever()
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    httpd.server_close()
+    print("server stopped")
 
 
 run()
