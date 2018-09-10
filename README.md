@@ -5,7 +5,7 @@
 - reqs: `python 3.7` and
 - also make sure to run `pip install -r requirements.txt`
 - execute: ```python . <prod/dev>```
-- open browser at ```localhost```
+- open browser at ```localhost``` or ``` daniel.dotcookie.me```
 
 ## whats it doing
 
