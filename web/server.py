@@ -36,41 +36,38 @@ class Serv(BaseHTTPRequestHandler):
         return
 
     def do_POST(self):
-        content_length = int(self.headers["Content-Length"])
-        # <--- Gets the data itself
-        post_data = self.rfile.read(content_length).decode("utf-8")
-        params2 = post_data.split("&")
-        params = {}
-        for p in params2:
-            params[p.split("=")[0]] = p.split("=")[1]
+        if self.path == "/" or self.path == "/index.html":
+            content_length = int(self.headers["Content-Length"])
+            post_data = self.rfile.read(content_length).decode("utf-8")
+            params2 = post_data.split("&")
+            params = {}
+            for p in params2:
+                params[p.split("=")[0]] = unquote(p.split("=")[1])
 
-        mail = params["mail"]
-        password = params["password"]
-        league = params["league"]
-        mail, password, league = unquote(mail), unquote(
-            password), unquote(league).replace("+", " ")
-        self.send_response(200)
-        try:
-            ret_val = analyser.run(mail, password, league)
-            csv_temp = ret_val
-            ret_val = csv_to_html(ret_val)
-            with open("./web/static/table.html", "r") as f:
-                table = f.read()
-                ret_val = table.replace("$$$TABLE$$$", ret_val)
-                ret_val = ret_val.replace("$$$CSV$$$", quote(csv_temp))
-            mime_type, _ = mimetypes.guess_type(self.path)
-            self.send_header("Content-Type", mime_type)
+            mail = params["mail"]
+            password = params["password"]
+            league = params["league"]
+            league = league.replace("+", " ")
+            self.send_response(200)
+            try:
+                file_to_open = analyser.run(mail, password, league)
+                csv_temp = file_to_open
+                file_to_open = csv_to_html(file_to_open)
+                with open("./web/static/table.html", "r") as f:
+                    file_to_open = f.read().replace("$$$TABLE$$$", file_to_open)
+                    file_to_open = file_to_open.replace("$$$CSV$$$", quote(csv_temp))
+                
+                mime_type, _ = mimetypes.guess_type(self.path)
+                self.send_header("Content-Type", mime_type)
+            except (analyser.AnalysisError):
+                file_to_open = "analysis didn't work"
+            except analyser.LoginError as err:
+                file_to_open = f"could not login user {err.mail}, code {err.code}"
+            except:
+                file_to_open = "some mysterious error occured, which the developer did not foresee"
 
-        except (analyser.AnalysisError):
-            # self.send_header("Content-Type", "text/html")
-            ret_val = "analysis didn't work"
-        except analyser.LoginError as err:
-            ret_val = f"could not login user {err.mail}, code {err.code}"
-        except:
-            ret_val = "some mysterious error occured, which the developer did not foresee"
-
-        self.end_headers()
-        self.wfile.write(bytes(ret_val, "utf8"))
+            self.end_headers()
+        self.wfile.write(bytes(file_to_open, "utf8"))
         return
 
 
