@@ -10,13 +10,6 @@ from kickbase import analyser
 
 
 class Serv(BaseHTTPRequestHandler):
-    def do_HEAD(self):
-        print("HEADER")
-        self.send_response(200)
-        mime_type = mimetypes.guess_type(self.path)
-        self.send_header("Content-Type", mime_type)
-        self.end_headers()
-
     # GET
     def do_GET(self):
         if self.path == '/':
@@ -32,7 +25,7 @@ class Serv(BaseHTTPRequestHandler):
                 """Respond to a GET request."""
                 file_to_open = open(f"web/static/{self.path[1:]}").read()
                 self.send_response(200)
-                mime_type = mimetypes.guess_type(self.path)
+                mime_type, _ = mimetypes.guess_type(self.path)
                 self.send_header("Content-Type", mime_type)
                 self.end_headers()
             except (FileNotFoundError):
@@ -44,12 +37,16 @@ class Serv(BaseHTTPRequestHandler):
 
     def do_POST(self):
         content_length = int(self.headers["Content-Length"])
-        post_data = self.rfile.read(content_length).decode(
-            "utf-8")  # <--- Gets the data itself
-        credentials = post_data.split("&")
-        mail = credentials[0].split("=")[1]
-        password = credentials[1].split("=")[1]
-        league = credentials[2].split("=")[1]
+        # <--- Gets the data itself
+        post_data = self.rfile.read(content_length).decode("utf-8")
+        params2 = post_data.split("&")
+        params = {}
+        for p in params2:
+            params[p.split("=")[0]] = p.split("=")[1]
+
+        mail = params["mail"]
+        password = params["password"]
+        league = params["league"]
         mail, password, league = unquote(mail), unquote(
             password), unquote(league).replace("+", " ")
         self.send_response(200)
@@ -61,7 +58,7 @@ class Serv(BaseHTTPRequestHandler):
                 table = f.read()
                 ret_val = table.replace("$$$TABLE$$$", ret_val)
                 ret_val = ret_val.replace("$$$CSV$$$", quote(csv_temp))
-            mime_type = mimetypes.guess_type(self.path)
+            mime_type, _ = mimetypes.guess_type(self.path)
             self.send_header("Content-Type", mime_type)
 
         except (analyser.AnalysisError):
