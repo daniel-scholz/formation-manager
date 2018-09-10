@@ -14,7 +14,7 @@ class Serv(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == '/':
             self.path = '/index.html'
-        if self.path == "/redirect":
+        if self.path == "/redirect" or self.path == "/table":
             self.send_response(301)
             self.send_header("Location", "/")
             self.end_headers()
@@ -36,14 +36,20 @@ class Serv(BaseHTTPRequestHandler):
         return
 
     def do_POST(self):
-        if self.path == "/" or self.path == "/index.html":
+        if self.path == "/table":
             content_length = int(self.headers["Content-Length"])
             post_data = self.rfile.read(content_length).decode("utf-8")
             params2 = post_data.split("&")
             params = {}
             for p in params2:
-                params[p.split("=")[0]] = unquote(p.split("=")[1])
-
+                if p.split("=")[1] != "":
+                    params[p.split("=")[0]] = unquote(p.split("=")[1])
+                else:
+                    self.send_response(301)
+                    self.send_header("Location", ".")
+                    self.end_headers()
+                    self.wfile.write(bytes("Try again", 'utf-8'))
+                    return
             mail = params["mail"]
             password = params["password"]
             league = params["league"]
@@ -55,8 +61,9 @@ class Serv(BaseHTTPRequestHandler):
                 file_to_open = csv_to_html(file_to_open)
                 with open("./web/static/table.html", "r") as f:
                     file_to_open = f.read().replace("$$$TABLE$$$", file_to_open)
-                    file_to_open = file_to_open.replace("$$$CSV$$$", quote(csv_temp))
-                
+                    file_to_open = file_to_open.replace(
+                        "$$$CSV$$$", quote(csv_temp))
+
                 mime_type, _ = mimetypes.guess_type(self.path)
                 self.send_header("Content-Type", mime_type)
             except (analyser.AnalysisError):
@@ -67,7 +74,13 @@ class Serv(BaseHTTPRequestHandler):
                 file_to_open = "some mysterious error occured, which the developer did not foresee"
 
             self.end_headers()
-        self.wfile.write(bytes(file_to_open, "utf8"))
+            self.wfile.write(bytes(file_to_open, "utf8"))
+        else:
+            self.send_response(404)
+            self.send_header("Content-Type", "text/html")
+            self.end_headers()
+            self.wfile.write(
+                bytes("<h1>The site you are looking for does not exist</h1>", 'utf-8'))
         return
 
 
