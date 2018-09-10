@@ -18,12 +18,20 @@ class Serv(BaseHTTPRequestHandler):
         try:
             file_to_open = open(f"./web/static/{self.path[1:]}").read()
             self.send_response(200)
+            # self.send_header("Content-Type","text/html; charset=utf-8")
+            mime_type = mimetypes.guess_type(self.path)
+            self.send_header("Content-Type", mime_type)
         except:
             file_to_open = "File not found"
             self.send_response(404)
         self.end_headers()
         self.wfile.write(bytes(file_to_open, 'utf-8'))
         return
+
+
+
+
+
 
     def do_POST(self):
         content_length = int(self.headers["Content-Length"])
