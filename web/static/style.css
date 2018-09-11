@@ -1,33 +1,58 @@
+@font-face {
+    font-family: BrandNewRomanC;
+    src: url("brand-new-roman/BrandNewRoman-C.otf") format("opentype");
+}
+
+@font-face {
+    font-family: BrandNewRomanBW;
+    src: url("brand-new-roman/BrandNewRoman-BW.otf") format("opentype");
+}
+
+
 body {
-	padding: 30px;
-	text-align: center;
+    padding: 30px;
+    text-align: center;
+}
+
+h1 {
+    font-family: "BrandNewRomanC", "BrandNewRomanC", Arial, Helvetica, sans-serif;
 }
 
 div {
-	padding: 10px 10px 0px 10px;	
+    padding: 10px 10px 0px 10px;
 }
 
 input {
     padding: 9px;
     border: solid 1px #E5E5E5;
-	border-radius: 5px;
+    border-radius: 5px;
     outline: 0;
     font: normal 13px/100% Verdana, Tahoma, sans-serif;
     width: 50%;
     background: #FFFFFF;
-    -moz-box-sizing: border-box; -webkit-box-sizing: border-box; box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
 }
 
 input::placeholder {
-	color: #E5E5E5;
+    color: rgba(229, 229, 229, 0.75);
 }
 
-input:hover, input:focus, input[type="submit"]:hover {
-    border-color: #13c38c;/*#C9C9C9;*/
+input:hover::placeholder {
+    color: #13c38c;
+}
+
+input:hover,
+input:focus,
+input[type="submit"]:hover {
+    border-color: #13c38c;
+    /*#C9C9C9;*/
+
 }
 
 label {
-	font: normal 13px/100% Verdana, Tahoma, sans-serif;
+    font: normal 13px/100% Verdana, Tahoma, sans-serif;
     margin-left: 0px;
     color: #999999;
 }
@@ -35,9 +60,16 @@ label {
 input[type="submit"] {
     width: auto;
     padding: 9px 15px;
-	margin-left: 0px;
+    margin-left: 0px;
     background: #13c38c;
     border: 0;
     font-size: 14px;
     color: #FFFFFF;
+    cursor: pointer;
+}
+
+input[type="submit"]:hover {
+    background: #FFFFFF;
+    color: #13c38c;
+    border: 1px solid #13c38c;
 }

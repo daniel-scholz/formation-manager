@@ -1,0 +1,12 @@
+@font-face {
+    font-family: 'BrandNewRomanC';
+    src: url("brand-new-roman/BrandNewRoman-C.otf") format("opentype");
+    src: url('brand-new-roman/BrandNewRomanC.eot');
+    src: url('brand-new-roman/BrandNewRomanC.woff2') format('woff2'),
+        url('brand-new-roman/BrandNewRomanC.woff') format('woff'),
+        url('brand-new-roman/BrandNewRomanC.ttf') format('truetype'),
+        url('brand-new-roman/BrandNewRomanC.svg#BrandNewRomanC') format('svg'),
+        url('brand-new-roman/BrandNewRomanC.eot?#iefix') format('embedded-opentype');
+    font-weight: normal;
+    font-style: normal;
+}
