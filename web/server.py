@@ -2,6 +2,7 @@ import argparse
 import io
 import mimetypes
 import json
+import socket
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import quote, unquote
 
@@ -20,12 +21,11 @@ class Serv(BaseHTTPRequestHandler):
             self.send_header("Location", "/")
             self.end_headers()
             self.wfile.write(bytes("Redirect", 'utf-8'))
-
         else:
             try:
                 """Respond to a GET request."""
                 self.send_response(200)
-                if self.path.endswith("otf"):
+                if self.path.endswith(".otf"):
                     file_to_open = open(
                         f"web/static/{self.path[1:]}", "rb").read()
                     self.send_header(
@@ -84,8 +84,8 @@ class Serv(BaseHTTPRequestHandler):
                 "$$$AUTH_TOKEN$$$", auth_token)
             # TODO implement redirect on one choice
             # if len(json_resp) == 1:
-                # self.send_response(301)
-                # self.send_header("Location", "/table")
+            # self.send_response(301)
+            # self.send_header("Location", "/table")
             # else:
             self.send_response(200)
             mime_type, _ = mimetypes.guess_type(self.path)
@@ -151,7 +151,8 @@ def run():
     elif args.mode == "prod":
         ADDRESS = ""
     elif args.mode == "room":
-        ADDRESS = "192.168.1.48"
+        ADDRESS = socket.gethostbyname(socket.gethostname())
+        print("current ip:", ADDRESS)
     # Server settings
     # Choose port 8080, for port 80, which is normally used for a http server, you need root access
     PORT_NUMBER = 80
@@ -163,6 +164,5 @@ def run():
     except KeyboardInterrupt:
         httpd.server_close()
         print("server stopped")
-
 
 run()

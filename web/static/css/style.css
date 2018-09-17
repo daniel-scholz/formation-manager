@@ -73,3 +73,8 @@ input[type="submit"]:hover {
     color: #13c38c;
     border: 1px solid #13c38c;
 }
+
+.league_option:hover {
+    cursor: pointer;
+    box-shadow: 1px 1px 5   px #13c38c;
+}

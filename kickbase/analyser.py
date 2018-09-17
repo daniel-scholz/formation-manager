@@ -124,7 +124,9 @@ def analyse(auth_token: str, league_id: str) -> str:
 
 def to_csv(team: Team) -> str:
     try:
+
         csv_str = f"TOTAL:, {team.value}, BUDGET:, {team.budget}\n"
+        csv_str += f"NAME, POSITION, MARKET VALUE, OFFER\n"
         for p in team.players:
             csv_str += f"{p.name},{p.position},{p.market_value}, {p.highest_offer}\n"
         return csv_str
