@@ -144,18 +144,25 @@ def csv_to_html(csv: str)-> str:
 def run():
     print('starting server...')
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", type=str, default="dev", help="dev or prod")
+    parser.add_argument("mode", type=str, default="dev",
+                        help="dev or prod or room")
+    parser.add_argument("port", type=str, default="80",
+                        help="Specify your port")
     args = parser.parse_args()
     if args.mode == "dev":
         ADDRESS = "localhost"
     elif args.mode == "prod":
         ADDRESS = ""
     elif args.mode == "room":
-        ADDRESS = socket.gethostbyname(socket.gethostname())
-        print("current ip:", ADDRESS)
+        try:
+            ADDRESS = socket.gethostbyname(socket.gethostname())
+            print("current ip:", ADDRESS)
+        except OSError:
+            print("could not get current ip, using localhost instead")
+            ADDRESS = "localhost"
     # Server settings
     # Choose port 8080, for port 80, which is normally used for a http server, you need root access
-    PORT_NUMBER = 80
+    PORT_NUMBER = int(args.port)
     server_address = (ADDRESS, PORT_NUMBER)
     httpd = HTTPServer(server_address, Serv)
     print('running server...')
@@ -164,5 +171,6 @@ def run():
     except KeyboardInterrupt:
         httpd.server_close()
         print("server stopped")
+
 
 run()
