@@ -1,20 +1,11 @@
-import requests
-import json
 import argparse
-from typing import List
+import json
+import operator
+import os
+from getpass import getpass
+from typing import Dict, List
 
-
-class Player():
-    def __init__(self, player_json):
-        self.id = player_json["id"]
-        self.name = player_json["lastName"]
-        self.market_value = player_json["marketValue"]
-        self.highest_offer = 0
-        self.average_points = player_json["averagePoints"]
-        self.total_points = player_json["totalPoints"]
-        self.position = player_json["position"]
-        self.teamId = player_json["teamId"]
-        self.for_sale = False
+import requests
 
 
 class LoginError(Exception):
@@ -27,24 +18,18 @@ class AnalysisError(Exception):
     pass
 
 
-class Team():
-    def __init__(self, players, value, budget):
-        self.players = players
-        self.value = value
-        self.budget = budget
-
-
-def parse_credentials() -> (str, str):
+def parse_credentials() -> Dict:
     parser = argparse.ArgumentParser(description='parse login info')
 
-    parser.add_argument("m", type=str,  help="mail")
-    parser.add_argument("p", type=str,  help="password")
+    parser.add_argument("--mail", type=str,  help="mail")
+    parser.add_argument("--password", type=str,  help="password")
 
-    args = parser.parse_args()
-    return args.m, args.p
+    args = parser.parse_args().__dict__
+
+    return args
 
 
-def login(mail: str, password: str) -> (int):
+def login(mail: str, password: str) -> str:
     login = requests.post(
         "https://kickbase.sky.de/api/v1/user/login", params={
             "email": mail,
@@ -56,75 +41,56 @@ def login(mail: str, password: str) -> (int):
     raise LoginError(mail, login.status_code)
 
 
-def get_squad(auth_token: str, id: int):
+def get_squad(auth_token: str, league_id: str):
     request = requests.get(
-        f"https://api.kickbase.com/leagues/{id}/lineupex", headers={"Authorization": f"Bearer {auth_token}"})
-    players_json = json.loads(request.text)["players"]
-    if request.status_code != 200:
-        print("get_squad failed", request.status_code)
-    players = []
-    total_market_value = 0
-    for p in players_json:
-        player = Player(p)
-        players.append(player)
-        total_market_value += player.market_value
-    return players, total_market_value
+        f"https://api.kickbase.com/leagues/{league_id}/lineupex", headers={"Authorization": f"Bearer {auth_token}"})
+    return json.loads(request.text)["players"]
 
 
-def get_budget(leagues: json, id: str) -> int:
+def get_budget(leagues: Dict, league_id: str) -> str:
     for l in leagues:
-        if l["id"] == id:
+        if l["league_id"] == league_id:
             return l["lm"]["budget"]
-    raise NameError(f"could not find league {id}")
+    raise NameError(f"could not find league {league_id}")
 
 
-def get_leagues(auth_token: str) -> json:
+def get_leagues(auth_token: str)->List:
     leagues = requests.get(
         "https://api.kickbase.com/leagues?ext=true",
         headers={"Authorization": f"Bearer {auth_token}"})
-
-    if leagues.status_code != 200:
-        raise ConnectionError(
-            f"could not get leagues, status code {leagues.status_code}")
+    print(leagues)
     return leagues.json()["leagues"]
 
 
-def get_offers(auth_token: str, id: int, players: List) -> List:
+def get_market(auth_token: str, league_id: str) -> List:
     market = requests.get(
-        f"https://api.kickbase.com/leagues/{id}/market", headers={
+        f"https://api.kickbase.com/leagues/{league_id}/market", headers={
             "Authorization": f"Bearer {auth_token}"
         })
+    return market.json()["players"]
 
-    for mp in market.json()["players"]:
-        for p in players:
-            if mp["id"] == p.id and "offers" in mp:
+
+def get_offers(auth_token: str, league_id: str, team: Dict, market: List, user_id: str) -> List:
+
+    players = get_squad(
+        auth_token=auth_token, league_id=league_id)
+    # market = get_market(auth_token=auth_token,
+    #                     league_id=league_id)
+    # players = []
+    for p in players:
+        for mp in filter(lambda mp: p["id"] == mp["id"], market):
+            if "offers" in mp.keys():
+                p["offer"] = mp["offers"][0]["price"]
                 for o in mp["offers"]:
-                    if o["price"] > p.highest_offer:
-                        p.highest_offer = o["price"]
+                    if o["price"] > p["offer"]:
+                        p["offer"] = o["price"]
+                break
+
     return players
 
 
-def analyse(auth_token: str, league_id: str) -> str:
-    # try:
-    team = Team([], 0, 0)
-    # try:
-    team.budget = get_budget(leagues=get_leagues(auth_token), id=league_id)
-    team.players, team.value = get_squad(
-        auth_token=auth_token, id=league_id)
-    team.players = get_offers(auth_token=auth_token,
-                              id=league_id, players=team.players)
-    return to_csv(team=team)
-    #     except (NameError):
-    #         # print("Poop")
-    #         pass
-    # except (NameError, ConnectionError):
-    #     pass
-    # raise AnalysisError("something went wrong during analysis")
-
-
-def to_csv(team: Team) -> str:
+def to_csv(team):
     try:
-
         csv_str = f"TOTAL:, {team.value}, BUDGET:, {team.budget}\n"
         csv_str += f"NAME, POSITION, MARKET VALUE, OFFER\n"
         for p in team.players:
@@ -134,7 +100,53 @@ def to_csv(team: Team) -> str:
         pass
 
 
-def run(mail: str, password: str) -> List[str]:
+def run(mail: str, password: str) -> tuple:
     auth_token = login(mail, password)
     print(f"login successful {mail}")
     return get_leagues(auth_token), auth_token
+
+
+if os.path.isfile("./auth_token"):
+    # read auth token file
+    with open("./auth_token", "r") as auth_f:
+        auth_token = auth_f.read()
+else:
+    # read credentials from cli
+    email = input("email: ")
+    pw = getpass("password: ")
+    auth_token = login(email, pw)
+    with open("./auth_token", "w+") as auth_f:
+        auth_f.write(auth_token)
+
+
+leagues = get_leagues(auth_token)
+print("Enter number for desired league:", [
+      f"{i+1} : {leagues[i]['name']}" for i in range(0, len(leagues))], sep="\n")
+
+i = int(input()) - 1
+league = leagues[i]
+league_id = league["id"]
+user_id = requests.get("https://api.kickbase.com/user/settings",
+                       headers={"Authorization": f"Bearer {auth_token}"}).json()["user"]["id"]
+
+team = league["lm"]
+# budget= team["budget"]
+# points = team["points"]
+# team_value = team["teamValue"]
+# placement = team["placement"] -> "Platzierung"
+
+
+with open(f"market_{leagues[i]['name']}.json", "w+") as f:
+    market = get_market(auth_token, league_id)
+    f.write(json.dumps(market, ensure_ascii=False))
+# adds offers to players
+
+team = get_offers(auth_token, league_id, team, market, user_id)
+with open("squad-offers.json", "w+") as f:
+    f.write(json.dumps(team, ensure_ascii=False))
+
+# with open("leagues.json", "w+") as f:
+#     f.write(json.dumps(leagues_json, ensure_ascii=False))
+
+# with open("squad.json", "w+") as f:
+#     f.write(json.dumps(get_squad(auth_token, league_id), ensure_ascii=False))
