@@ -7,6 +7,8 @@ from typing import Dict, List
 
 import requests
 
+from operator import le
+
 
 class LoginError(Exception):
     def __init__(self, mail, status_code):
@@ -54,7 +56,7 @@ def get_budget(leagues: Dict, league_id: str) -> str:
     raise NameError(f"could not find league {league_id}")
 
 
-def get_leagues(auth_token: str)->List:
+def get_leagues(auth_token: str) -> List:
     leagues = requests.get(
         "https://api.kickbase.com/leagues?ext=true",
         headers={"Authorization": f"Bearer {auth_token}"})
@@ -106,11 +108,41 @@ def run(mail: str, password: str) -> tuple:
     return get_leagues(auth_token), auth_token
 
 
-if os.path.isfile("./auth_token"):
+def remove_from_market(player, league):
+    response = requests.delete(
+        url="https://api.kickbase.com/leagues/{}/market/{}".format(league, player["id"]), headers={"Authorization": f"Bearer {auth_token}"})
+    if response.status_code != 200:
+        print("could not delete player from tm", response)
+    else:
+        print("player %s removed from tm succesfully" %
+              (player["firstName"]+" "+player["lastName"]))
+
+
+def add_player_to_market(player, league):
+    url = "https://api.kickbase.com/leagues/%s/market" % league
+
+    payload = "{\"playerId\":\"%s\",\"price\":%d}" % (
+        player["id"], int(player["marketValue"]*1.2))
+    headers = {
+        'Content-Type': "application/json",
+        'Authorization': "Bearer {}".format(auth_token),
+    }
+
+    response = requests.request("POST", url, data=payload, headers=headers)
+    if response.status_code == 200:
+        print("player %s added to tm successfully" %
+              (player["firstName"]+" "+player["lastName"]))
+
+
+try:
     # read auth token file
     with open("./auth_token", "r") as auth_f:
         auth_token = auth_f.read()
-else:
+    if requests.get("https://api.kickbase.com/user/settings", headers={"Authorization": f"Bearer {auth_token}"}).status_code != 200:
+        print("invalid token")
+        raise ConnectionError
+except (FileNotFoundError, ConnectionError):
+
     # read credentials from cli
     email = input("email: ")
     pw = getpass("password: ")
@@ -123,7 +155,8 @@ leagues = get_leagues(auth_token)
 print("Enter number for desired league:", [
       f"{i+1} : {leagues[i]['name']}" for i in range(0, len(leagues))], sep="\n")
 
-i = int(input()) - 1
+# i = int(input()) - 1
+i = 1-1  # for dev purposes
 league = leagues[i]
 league_id = league["id"]
 user_id = requests.get("https://api.kickbase.com/user/settings",
@@ -136,17 +169,25 @@ team = league["lm"]
 # placement = team["placement"] -> "Platzierung"
 
 
+market = get_market(auth_token, league_id)
 with open(f"market_{leagues[i]['name']}.json", "w+") as f:
-    market = get_market(auth_token, league_id)
+    print("Getting current transfer market")
     f.write(json.dumps(market, ensure_ascii=False))
 # adds offers to players
 
 team = get_offers(auth_token, league_id, team, market, user_id)
-with open("squad-offers.json", "w+") as f:
-    f.write(json.dumps(team, ensure_ascii=False))
+with open("your_squad_%s.json" % leagues[i]["name"], "w+") as f:
+    print("Getting your squad")
+    f.write(json.dumps(
+        sorted(team, key=lambda x: x["position"]), ensure_ascii=False))
 
-# with open("leagues.json", "w+") as f:
-#     f.write(json.dumps(leagues_json, ensure_ascii=False))
 
-# with open("squad.json", "w+") as f:
-#     f.write(json.dumps(get_squad(auth_token, league_id), ensure_ascii=False))
+market_ids = [p["id"] for p in market]
+for player in team:
+    if player.get("offer") and player["offer"] < player["marketValue"]:
+        remove_from_market(player, league_id)
+        market_ids.remove(player["id"])
+
+for player in team:
+    if player["id"] not in market_ids:
+        add_player_to_market(player, league_id)
