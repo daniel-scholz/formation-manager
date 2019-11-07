@@ -1,3 +1,6 @@
+from time import timezone
+import pytz
+from datetime import datetime, date, timezone
 import argparse
 import json
 import operator
@@ -6,8 +9,6 @@ from getpass import getpass
 from typing import Dict, List
 
 import requests
-
-from operator import le
 
 
 class LoginError(Exception):
@@ -156,17 +157,13 @@ print("Enter number for desired league:", [
       f"{i+1} : {leagues[i]['name']}" for i in range(0, len(leagues))], sep="\n")
 
 # i = int(input()) - 1
-i = 1-1  # for dev purposes
+i = 3-1  # for dev purposes
 league = leagues[i]
 league_id = league["id"]
 user_id = requests.get("https://api.kickbase.com/user/settings",
                        headers={"Authorization": f"Bearer {auth_token}"}).json()["user"]["id"]
 
 team = league["lm"]
-# budget= team["budget"]
-# points = team["points"]
-# team_value = team["teamValue"]
-# placement = team["placement"] -> "Platzierung"
 
 
 market = get_market(auth_token, league_id)
@@ -181,12 +178,32 @@ with open("your_squad_%s.json" % leagues[i]["name"], "w+") as f:
     f.write(json.dumps(
         sorted(team, key=lambda x: x["position"]), ensure_ascii=False))
 
+response = requests.get(url="https://api.kickbase.com/competition/matches", params={
+                        "matchDay": 1}, headers={"Authorization": f"Bearer {auth_token}"})
+
+cmd = response.json()["cmd"] + 1  # current match day +1
+
+# get next match day date
+response = requests.get(url="https://api.kickbase.com/competition/matches", params={
+                        "matchDay": cmd}, headers={"Authorization": f"Bearer {auth_token}"})
+
+start_time = min(response.json()["m"], key=lambda x: x["d"])["d"]
+start_time = datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%SZ")
+start_time = pytz.timezone('Europe/Berlin').localize(start_time)
+
+sell_time = start_time.replace(hour=start_time.hour - 2)
+# sell_time = start_time.replace(day=start_time.day - 1) dev reasons
+# check if enough time is left to get some new offers
+time_to_sell = datetime.now(tz=pytz.timezone("Europe/Berlin")) <= sell_time
 
 market_ids = [p["id"] for p in market]
-for player in team:
-    if player.get("offer") and player["offer"] < player["marketValue"]:
-        remove_from_market(player, league_id)
-        market_ids.remove(player["id"])
+if time_to_sell:
+    for player in team:
+        if player.get("offer") and player["offer"] < player["marketValue"]:
+            remove_from_market(player, league_id)
+            market_ids.remove(player["id"])
+else:
+    print("It is too late to get new offers!")
 
 for player in team:
     if player["id"] not in market_ids:
