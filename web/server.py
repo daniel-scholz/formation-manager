@@ -98,7 +98,7 @@ class Serv(BaseHTTPRequestHandler):
             try:
                 league_id = params["league_id"]
                 auth_token = params["auth_token"]
-                file_to_open = analyser.analyse(
+                file_to_open = analyser.get_offers(
                     auth_token=auth_token, league_id=league_id)
                 json_resp = []
 
