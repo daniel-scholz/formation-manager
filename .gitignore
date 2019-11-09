@@ -1,4 +1,5 @@
-password
+pw
+auth_token
 
 *.json
 *.csv
